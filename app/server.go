@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -31,6 +32,7 @@ type DBConfig struct {
 	Password string
 	SSLMode string
 	Timezone string
+	Driver string
 }
 
 
@@ -38,8 +40,15 @@ func (server *Server) Initialize(appConfig AppConfig, dBConfig DBConfig) {
 	fmt.Println("Welcome to " + appConfig.AppName + " API")
 
 	var err error
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",dBConfig.Host, dBConfig.User, dBConfig.Password, dBConfig.DBName, dBConfig.Port, dBConfig.SSLMode, dBConfig.Timezone)	
-	server.DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	if (dBConfig.Driver == "mysql") {
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dBConfig.User, dBConfig.Password, dBConfig.Host, dBConfig.Port, dBConfig.DBName)
+		server.DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	} else {
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",dBConfig.Host, dBConfig.User, dBConfig.Password, dBConfig.DBName, dBConfig.Port, dBConfig.SSLMode, dBConfig.Timezone)	
+		server.DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	}
+
 
 	if err != nil {
 		panic("Failed to connect to database:" + err.Error())
@@ -83,6 +92,7 @@ func Run() {
 	dBConfig.Port = getEnv("DB_PORT", "5432")
 	dBConfig.SSLMode = getEnv("DB_SSLMODE", "disable")
 	dBConfig.Timezone = getEnv("DB_TIMEZONE", "Asia/Jakarta")
+	dBConfig.Driver = getEnv("DB_DRIVER", "postgres")
 
 	server.Initialize(appConfig, dBConfig)
 	server.Run(":" + appConfig.AppPort)
